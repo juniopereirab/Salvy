@@ -1,0 +1,55 @@
+version: "3.7"
+
+services:
+  salvy_mail:
+    container_name: salvy_mail
+    entrypoint: ["/bin/sh", "-c", "MailHog &>/dev/null"]
+    image: mailhog/mailhog
+    logging:
+      driver: none
+    ports:
+      - 1025:1025
+      - 8025:8025
+
+  salvy_db:
+    container_name: salvy_db
+    image: mongo:latest
+    restart: always
+    command: mongod --quiet --logpath /dev/null
+    ports:
+      - 27017:27017
+    volumes:
+      - ./database:/data/database
+    environment:
+      - MONGO_INITDB_DATABASE=Salvy
+
+  salvy_backend:
+    container_name: salvy_backend
+    command: npm start
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/backend
+      - /backend/node_modules
+    ports:
+      - "5050:5050"
+    environment:
+      - MAILHOG_HOST=salvy_mail
+    depends_on:
+      - salvy_db
+      - salvy_mail
+
+  salvy_frontend:
+    container_name: salvy_frontend
+    command: npm run dev
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/frontend
+      - /frontend/node_modules
+    depends_on:
+      - salvy_backend
